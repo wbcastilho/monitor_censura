@@ -3,6 +3,7 @@ from ttkbootstrap.constants import *
 from tkinter import filedialog
 import os
 from tkinter import messagebox
+from MyPsutil import MyPsutil
 
 
 class MainForm(ttk.Frame):
@@ -13,7 +14,7 @@ class MainForm(ttk.Frame):
         self.server = ttk.StringVar()
         self.port = ttk.StringVar()
         self.topic = ttk.StringVar()
-        self.path = ttk.StringVar()
+        self.process = ttk.StringVar()
         self.topic_path = ttk.StringVar()
         self.afterid = ttk.StringVar()
         self.client_mqtt = None
@@ -25,8 +26,12 @@ class MainForm(ttk.Frame):
         self.entry_server = None
         self.entry_port = None
         self.entry_topic = None
-        self.entry_path = None
+        self.combobox_process = None
         self.entry_topic_path = None
+
+        self.process_values = None
+
+        self.init_process_combobox()
 
         self.create_form_config()
         self.create_form_path()
@@ -66,20 +71,17 @@ class MainForm(ttk.Frame):
         self.entry_topic.grid(row=2, column=1, padx=2, sticky=ttk.W, pady=10)
 
     def create_form_path(self):
-        label_frame = ttk.Labelframe(self, text='Monitoração Pasta')
+        label_frame = ttk.Labelframe(self, text='Monitoração Processo')
         label_frame.pack(fill="x", padx=10, pady=10)
 
         frame = ttk.Frame(label_frame)
         frame.pack(fill="x", padx=20, pady=20)
 
-        label = ttk.Label(frame, text="Pasta")
+        label = ttk.Label(frame, text="Processo")
         label.grid(row=0, column=0, padx=1, sticky=ttk.E, pady=10)
 
-        self.entry_path = ttk.Entry(frame, textvariable=self.path, width=70, state="disabled")
-        self.entry_path.grid(row=0, column=1, padx=2, sticky=ttk.W, pady=10)
-
-        self.button_browser = ttk.Button(frame, text="Browse", bootstyle=(INFO, OUTLINE))
-        self.button_browser.grid(row=0, column=2, padx=2, pady=10)
+        self.combobox_process = ttk.Combobox(frame, textvariable=self.process, width=50, values=self.process_values)
+        self.combobox_process.grid(row=0, column=1, padx=2, sticky=ttk.W, pady=10)
 
         label = ttk.Label(frame, text="Tópico")
         label.grid(row=1, column=0, padx=1, sticky=ttk.E, pady=10)
@@ -99,3 +101,8 @@ class MainForm(ttk.Frame):
 
         self.button_save = ttk.Button(frame, text="Salvar Configuração", bootstyle="default")
         self.button_save.pack(side=RIGHT, pady=10)
+
+    def init_process_combobox(self):
+        self.process_values = MyPsutil.show_activate_processess()
+
+
