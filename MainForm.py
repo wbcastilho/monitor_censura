@@ -30,17 +30,14 @@ class MainForm(ttk.Frame):
         self.entry_topic = None
         self.combobox_process = None
         self.entry_topic_process = None
-
         self.process_values = None
 
         self.digit_func = self.register(Validator.validate_number)
 
         self.init_process_combobox()
-
         self.create_form_config()
         self.create_form_path()
         self.create_buttons()
-
         self.read_config()
 
     def init_process_combobox(self):
