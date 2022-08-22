@@ -4,6 +4,7 @@ from tkinter import messagebox
 from ClientMqtt import ClientMqtt
 from MyPsutil import MyPsutil
 from Config import Config
+from Validator import Validator
 import json
 
 
@@ -31,6 +32,8 @@ class MainForm(ttk.Frame):
         self.entry_topic_process = None
 
         self.process_values = None
+
+        self.digit_func = self.register(Validator.validate_number)
 
         self.init_process_combobox()
 
@@ -66,7 +69,10 @@ class MainForm(ttk.Frame):
         self.entry_port = ttk.Entry(frame,
                                     textvariable=self.port,
                                     justify="center",
-                                    width=10)
+                                    width=10,
+                                    validate="key",
+                                    validatecommand=(self.digit_func, '%P')
+                                    )
         self.entry_port.grid(row=1, column=1, padx=2, sticky=ttk.W, pady=10)
 
         label = ttk.Label(frame, text="Tópico")
@@ -98,10 +104,11 @@ class MainForm(ttk.Frame):
         frame = ttk.Frame(self)
         frame.pack(fill="x", padx=10, pady=5)
 
-        self.button_connect = ttk.Button(frame, text="Conectar", bootstyle="success")
+        self.button_connect = ttk.Button(frame, text="Conectar", bootstyle="success", command=self.on_connect)
         self.button_connect.pack(side=LEFT, padx=5, pady=10)
 
-        self.button_disconnect = ttk.Button(frame, text="Desconectar", bootstyle="danger", state="disabled")
+        self.button_disconnect = ttk.Button(frame, text="Desconectar", bootstyle="danger", state="disabled",
+                                            command=self.on_disconnect)
         self.button_disconnect.pack(side=LEFT, padx=5, pady=10)
 
         self.button_save = ttk.Button(frame, text="Salvar Configuração", bootstyle="default", command=self.on_save)
@@ -109,13 +116,13 @@ class MainForm(ttk.Frame):
 
     def on_connect(self):
         print("Conectar")
-        # if not self.validate_form():
-        try:
-            self.client_mqtt = ClientMqtt("MONITOR_PC", self.topic.get(), self.server.get(), int(self.port.get()))
-            self.change_buttons_state(True)
-            self.after(0, self.loop)
-        except Exception as err:
-            messagebox.showerror(title="Erro", message=err)
+        if not self.validate_form():
+            try:
+                self.client_mqtt = ClientMqtt("MONITOR_CENSURA", self.topic.get(), self.server.get(), int(self.port.get()))
+                self.change_buttons_state(True)
+                self.after(0, self.loop)
+            except Exception as err:
+                messagebox.showerror(title="Erro", message=err)
 
     def on_disconnect(self):
         print("Desconectar")
@@ -124,16 +131,54 @@ class MainForm(ttk.Frame):
         self.after_cancel(self.afterid.get())
 
     def on_save(self):
-        # if not self.validate_form():
-        config = Config(self.server.get(), self.port.get(), self.topic.get(), self.process.get(),
-                        self.topic_process.get())
+        if not self.validate_form():
+            config = Config(self.server.get(), self.port.get(), self.topic.get(), self.process.get(),
+                            self.topic_process.get())
 
-        try:
-            with open('config.json', 'w') as f:
-                json.dump(config.__dict__, f)
-                messagebox.showinfo(title="Info", message="Configuração salva com sucesso.")
-        except Exception:
-            messagebox.showerror(title="Erro", message="Falha ao salvar arquivo de configuração.")
+            try:
+                with open('config.json', 'w') as f:
+                    json.dump(config.__dict__, f)
+                    messagebox.showinfo(title="Info", message="Configuração salva com sucesso.")
+            except Exception:
+                messagebox.showerror(title="Erro", message="Falha ao salvar arquivo de configuração.")
+
+    def validate_form(self) -> bool:
+        result = False
+
+        if self.server.get() == "":
+            self.entry_server.configure(bootstyle="danger")
+            result = True
+        else:
+            self.entry_server.configure(bootstyle="secondary")
+
+        if self.port.get() == "":
+            self.entry_port.configure(bootstyle="danger")
+            result = True
+        else:
+            self.entry_port.configure(bootstyle="secondary")
+
+        if self.topic.get() == "":
+            self.entry_topic.configure(bootstyle="danger")
+            result = True
+        else:
+            self.entry_topic.configure(bootstyle="secondary")
+
+        if self.process.get() == "":
+            self.combobox_process.configure(bootstyle="danger")
+            result = True
+        else:
+            self.combobox_process.configure(bootstyle="secondary")
+
+        if self.topic_process.get() == "":
+            self.entry_topic_process.configure(bootstyle="danger")
+            result = True
+        else:
+            self.entry_topic_process.configure(bootstyle="secondary")
+
+        if result:
+            messagebox.showwarning(title="Atenção",
+                                   message="Os campos sinalizados são de preenchimento obrigatório.")
+        return result
 
     def loop(self):
         def show_message_error(message):
@@ -143,14 +188,14 @@ class MainForm(ttk.Frame):
 
         try:
             if self.client_mqtt.connected:
-                result = MyPsutil.check_process_exist(self.process.get())
+                process_exist = MyPsutil.check_process_exist(self.process.get())
 
-                if result:
-                    print("Gera alarme")
-                    self.client_mqtt.publish(self.topic_process.get(), '1')
-                else:
+                if process_exist:
                     print("Sem alarme")
                     self.client_mqtt.publish(self.topic_process.get(), '0')
+                else:
+                    print("Gera alarme")
+                    self.client_mqtt.publish(self.topic_process.get(), '1')
 
                 self.afterid.set(self.after(5000, self.loop))
             else:
@@ -165,7 +210,6 @@ class MainForm(ttk.Frame):
         if state:
             self.button_connect["state"] = "disabled"
             self.button_disconnect["state"] = "normal"
-            self.button_browser["state"] = "disabled"
             self.button_save["state"] = "disabled"
             self.entry_server["state"] = "readonly"
             self.entry_port["state"] = "readonly"
@@ -174,7 +218,6 @@ class MainForm(ttk.Frame):
         else:
             self.button_connect["state"] = "normal"
             self.button_disconnect["state"] = "disabled"
-            self.button_browser["state"] = "normal"
             self.button_save["state"] = "normal"
             self.entry_server["state"] = "normal"
             self.entry_port["state"] = "normal"
